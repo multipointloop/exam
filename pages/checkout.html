@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>结算页面 — 長門番堂</title>
+    <meta name="description" content="長門番堂订单结算页面。学号：24215220132 姓名：黄政源">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="site-header">
+        <div class="header-inner"></div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <!-- 面包屑 -->
+        <div class="breadcrumb">
+            <a href="../index.html">首页</a> <span>›</span>
+            <a href="cart.html">购物车</a> <span>›</span>
+            <span>确认订单</span>
+        </div>
+
+        <div id="checkoutContent">
+            <div class="loading">加载中...</div>
+        </div>
+    </main>
+
+    <!-- 确认下单模态框 -->
+    <div id="successModal" style="display:none;"></div>
+
+    <!-- 页脚 -->
+    <footer class="site-footer">
+        <div class="footer-inner"></div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="../js/data.js"></script>
+    <script src="../js/cart.js"></script>
+    <script src="../js/main.js"></script>
+    <script>
+    /**
+     * 長門番堂 — 结算页逻辑
+     * 学号：24215220132  姓名：黄政源
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+        updateCartBadge();
+
+        // 检查登录状态
+        if (!isLoggedIn()) {
+            window.location.href = 'login.html?redirect=checkout';
+            return;
+        }
+
+        const items = cart.getDetailedItems();
+
+        if (items.length === 0) {
+            document.getElementById('checkoutContent').innerHTML = `
+                <div class="cart-empty">
+                    <div class="icon">🛒</div>
+                    <h3>购物车是空的</h3>
+                    <p>请先添加商品到购物车</p>
+                    <a href="../index.html" class="btn btn-primary" style="margin-top:16px;">去逛逛</a>
+                </div>`;
+            return;
+        }
+
+        const user = getCurrentUser();
+        const subtotal = cart.getTotalAmount();
+        const shippingMethods = checkout.getShippingMethods(subtotal);
+        const paymentMethods = checkout.getPaymentMethods();
+
+        let selectedShipping = subtotal >= 199 ? 'free' : 'standard';
+        let selectedPayment = 'alipay';
+
+        renderCheckout();
+
+        function renderCheckout() {
+            const shippingPrice = shippingMethods.find(m => m.id === selectedShipping)?.actualPrice ||
+                                   shippingMethods.find(m => m.id === selectedShipping)?.price || 8;
+            const total = subtotal + shippingPrice;
+
+            document.getElementById('checkoutContent').innerHTML = `
+                <div class="checkout-page">
+                    <!-- 左侧：收货信息和支付方式 -->
+                    <div>
+                        <!-- 收货地址 -->
+                        <div class="checkout-section">
+                            <h3>📍 收货信息</h3>
+                            <form id="addressForm" novalidate>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>收货人 <span class="required">*</span></label>
+                                        <input type="text" class="form-control" id="receiver"
+                                               value="${user.username}" required>
+                                        <div class="form-error" id="receiverError"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>联系电话 <span class="required">*</span></label>
+                                        <input type="tel" class="form-control" id="phone"
+                                               value="${user.phone || ''}" required>
+                                        <div class="form-error" id="phoneError"></div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>收货地址 <span class="required">*</span></label>
+                                    <input type="text" class="form-control" id="address"
+                                           placeholder="省/市/区/详细地址" required>
+                                    <div class="form-error" id="addressError"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>订单备注</label>
+                                    <textarea class="form-control" id="remark"
+                                              placeholder="选填：如有特殊要求请备注"></textarea>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- 配送方式 -->
+                        <div class="checkout-section" style="margin-top:16px;">
+                            <h3>🚚 配送方式</h3>
+                            <div class="payment-methods">
+                                ${shippingMethods.map(m => `
+                                    <div class="payment-method ${selectedShipping === m.id ? 'selected' : ''} ${!m.available ? 'disabled' : ''}"
+                                         data-shipping="${m.id}"
+                                         ${!m.available ? 'style="opacity:0.5;pointer-events:none;"' : ''}>
+                                        <div class="pm-icon">📦</div>
+                                        <div class="pm-name">${m.name}</div>
+                                        <div style="font-size:0.78rem;color:var(--text-muted);">
+                                            ${m.id === 'free' && subtotal >= 199 ? '免费' : '¥' + m.price.toFixed(2)}
+                                            · ${m.time}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            ${subtotal < 199 ? `<p style="margin-top:8px;font-size:0.82rem;color:var(--text-muted);">
+                                💡 还差 ¥${(199 - subtotal).toFixed(2)} 即可享受包邮
+                            </p>` : ''}
+                        </div>
+
+                        <!-- 支付方式 -->
+                        <div class="checkout-section" style="margin-top:16px;">
+                            <h3>💳 支付方式</h3>
+                            <div class="payment-methods">
+                                ${paymentMethods.map(m => `
+                                    <div class="payment-method ${selectedPayment === m.id ? 'selected' : ''}"
+                                         data-payment="${m.id}">
+                                        <div class="pm-icon">${m.icon}</div>
+                                        <div class="pm-name">${m.name}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：订单汇总 -->
+                    <div>
+                        <div class="order-summary">
+                            <h3>📋 订单汇总</h3>
+                            ${items.map(item => `
+                                <div class="summary-item">
+                                    <img src="../${item.product.image}" alt="${item.product.name}"
+                                         onerror="this.style.display='none'">
+                                    <div class="info">
+                                        <div class="name">${item.product.name}</div>
+                                        <div class="meta">
+                                            ¥${item.product.price.toFixed(2)} × ${item.quantity}
+                                        </div>
+                                    </div>
+                                    <div style="font-weight:600;color:var(--danger);white-space:nowrap;">
+                                        ¥${item.subtotal.toFixed(2)}
+                                    </div>
+                                </div>
+                            `).join('')}
+
+                            <div class="summary-totals">
+                                <div class="row">
+                                    <span>商品小计（${items.reduce((s,i) => s + i.quantity, 0)}件）</span>
+                                    <span>¥${subtotal.toFixed(2)}</span>
+                                </div>
+                                <div class="row">
+                                    <span>配送费</span>
+                                    <span>${shippingPrice === 0 ? '<span style="color:var(--success);">免运费</span>' : '¥' + shippingPrice.toFixed(2)}</span>
+                                </div>
+                                <div class="row total">
+                                    <span>应付总额</span>
+                                    <span>¥${total.toFixed(2)}</span>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-danger btn-lg btn-block"
+                                    style="margin-top:20px;"
+                                    id="btnSubmitOrder">
+                                🔒 提交订单 · ¥${total.toFixed(2)}
+                            </button>
+                            <p style="text-align:center;margin-top:10px;font-size:0.78rem;color:var(--text-muted);">
+                                提交订单即表示同意《用户协议》和《隐私政策》
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 绑定配送方式选择
+            document.querySelectorAll('[data-shipping]').forEach(el => {
+                el.addEventListener('click', function() {
+                    const shipId = this.dataset.shipping;
+                    const method = shippingMethods.find(m => m.id === shipId);
+                    if (!method || !method.available) return;
+                    selectedShipping = shipId;
+                    renderCheckout();
+                });
+            });
+
+            // 绑定支付方式选择
+            document.querySelectorAll('[data-payment]').forEach(el => {
+                el.addEventListener('click', function() {
+                    selectedPayment = this.dataset.payment;
+                    document.querySelectorAll('[data-payment]').forEach(e => e.classList.remove('selected'));
+                    this.classList.add('selected');
+                });
+            });
+
+            // 提交订单
+            document.getElementById('btnSubmitOrder').addEventListener('click', function() {
+                submitOrder();
+            });
+        }
+
+        function submitOrder() {
+            // 验证表单
+            const receiver = document.getElementById('receiver').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const address = document.getElementById('address').value.trim();
+            const remark = document.getElementById('remark').value.trim();
+
+            let hasError = false;
+
+            if (!receiver) {
+                showFieldError('receiver', 'receiverError', '请输入收货人姓名');
+                hasError = true;
+            } else {
+                clearFieldError('receiver', 'receiverError');
+            }
+
+            if (!phone) {
+                showFieldError('phone', 'phoneError', '请输入联系电话');
+                hasError = true;
+            } else if (!/^1[3-9]\d{9}$/.test(phone)) {
+                showFieldError('phone', 'phoneError', '手机号格式不正确');
+                hasError = true;
+            } else {
+                clearFieldError('phone', 'phoneError');
+            }
+
+            if (!address) {
+                showFieldError('address', 'addressError', '请输入收货地址');
+                hasError = true;
+            } else {
+                clearFieldError('address', 'addressError');
+            }
+
+            if (hasError) return;
+
+            // 禁用按钮防止重复提交
+            const btn = document.getElementById('btnSubmitOrder');
+            btn.disabled = true;
+            btn.textContent = '⏳ 提交中...';
+
+            // 模拟Ajax提交
+            setTimeout(() => {
+                const result = checkout.submitOrder({
+                    receiver: receiver,
+                    phone: phone,
+                    address: address,
+                    remark: remark,
+                    shippingMethod: selectedShipping,
+                    paymentMethod: selectedPayment
+                });
+
+                if (result.success) {
+                    updateCartBadge();
+                    showSuccessModal(result.order);
+                } else {
+                    toast.error(result.message);
+                    btn.disabled = false;
+                    btn.textContent = '🔒 提交订单';
+                }
+            }, 1000);
+        }
+
+        function showFieldError(inputId, errorId, message) {
+            const input = document.getElementById(inputId);
+            const error = document.getElementById(errorId);
+            if (input) input.classList.add('error');
+            if (error) { error.textContent = message; error.classList.add('show'); }
+        }
+
+        function clearFieldError(inputId, errorId) {
+            const input = document.getElementById(inputId);
+            const error = document.getElementById(errorId);
+            if (input) input.classList.remove('error');
+            if (error) { error.textContent = ''; error.classList.remove('show'); }
+        }
+
+        function showSuccessModal(order) {
+            // 创建成功页
+            document.getElementById('checkoutContent').innerHTML = `
+                <div style="text-align:center;padding:60px 20px;background:var(--bg-primary);border:1px solid var(--border-light);border-radius:var(--radius-md);">
+                    <div style="font-size:4rem;margin-bottom:16px;">🎉</div>
+                    <h2 style="margin-bottom:12px;">订单提交成功！</h2>
+                    <p style="color:var(--text-secondary);margin-bottom:8px;">订单编号：<strong>${order.id}</strong></p>
+                    <p style="color:var(--text-secondary);margin-bottom:8px;">应付金额：<strong style="color:var(--danger);font-size:1.2rem;">¥${order.total.toFixed(2)}</strong></p>
+                    <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:24px;">
+                        配送方式：${order.shippingMethod === 'free' ? '包邮' : order.shippingMethod === 'express' ? '特快专递' : '标准快递'}
+                        &nbsp;|&nbsp;
+                        支付方式：${order.paymentMethod === 'alipay' ? '支付宝' : order.paymentMethod === 'wechat' ? '微信支付' : order.paymentMethod === 'card' ? '银行卡' : '货到付款'}
+                    </p>
+                    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+                        <a href="orders.html" class="btn btn-primary">📦 查看订单</a>
+                        <a href="../index.html" class="btn btn-outline">🏠 继续购物</a>
+                    </div>
+                </div>
+            `;
+
+            // 滚动到顶部
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 实时清除错误
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('form-control') && e.target.classList.contains('error')) {
+                const errorEl = e.target.parentElement.querySelector('.form-error');
+                e.target.classList.remove('error');
+                if (errorEl) { errorEl.textContent = ''; errorEl.classList.remove('show'); }
+            }
+        });
+    });
+    </script>
+</body>
+</html>

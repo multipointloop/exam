@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的订单 — 長門番堂</title>
+    <meta name="description" content="長門番堂订单管理页面。学号：24215220132 姓名：黄政源">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="site-header">
+        <div class="header-inner"></div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <!-- 面包屑 -->
+        <div class="breadcrumb">
+            <a href="../index.html">首页</a> <span>›</span>
+            <a href="profile.html">个人中心</a> <span>›</span>
+            <span>我的订单</span>
+        </div>
+
+        <div class="page-hero">
+            <h1>📦 我的订单</h1>
+            <p>查看和管理您的所有订单</p>
+        </div>
+
+        <!-- 订单筛选 -->
+        <div class="category-nav" style="margin-bottom:20px;">
+            <div class="category-list" id="orderFilter">
+                <button class="active" data-status="all">全部订单</button>
+                <button data-status="pending">⏳ 待付款</button>
+                <button data-status="paid">✅ 已付款</button>
+                <button data-status="shipped">🚚 运输中</button>
+                <button data-status="completed">📦 已完成</button>
+                <button data-status="cancelled">❌ 已取消</button>
+            </div>
+        </div>
+
+        <!-- 订单列表 -->
+        <div id="ordersContent">
+            <div class="loading">加载中...</div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="site-footer">
+        <div class="footer-inner"></div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="../js/data.js"></script>
+    <script src="../js/cart.js"></script>
+    <script src="../js/main.js"></script>
+    <script>
+    /**
+     * 長門番堂 — 订单页逻辑
+     * 学号：24215220132  姓名：黄政源
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+        updateCartBadge();
+
+        if (!isLoggedIn()) {
+            document.getElementById('ordersContent').innerHTML = `
+                <div class="cart-empty">
+                    <div class="icon">🔒</div>
+                    <h3>请先登录</h3>
+                    <p>登录后即可查看您的订单</p>
+                    <a href="login.html" class="btn btn-primary" style="margin-top:16px;">去登录</a>
+                </div>`;
+            return;
+        }
+
+        let activeFilter = 'all';
+
+        // 筛选按钮事件
+        document.getElementById('orderFilter').addEventListener('click', function(e) {
+            if (e.target.tagName === 'BUTTON') {
+                this.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                activeFilter = e.target.dataset.status;
+                renderOrders();
+            }
+        });
+
+        renderOrders();
+
+        function renderOrders() {
+            const container = document.getElementById('ordersContent');
+            let orders = getUserOrders();
+
+            if (activeFilter !== 'all') {
+                orders = orders.filter(o => o.status === activeFilter);
+            }
+
+            if (orders.length === 0) {
+                container.innerHTML = `
+                    <div class="cart-empty">
+                        <div class="icon">📭</div>
+                        <h3>暂无订单</h3>
+                        <p>${activeFilter === 'all' ? '您还没有下过订单' : '没有该状态的订单'}</p>
+                        <a href="../index.html" class="btn btn-primary" style="margin-top:16px;">去购物</a>
+                    </div>`;
+                return;
+            }
+
+            const statusText = {
+                'pending': '待付款',
+                'paid': '已付款',
+                'shipped': '运输中',
+                'completed': '已完成',
+                'cancelled': '已取消'
+            };
+
+            container.innerHTML = orders.map(order => `
+                <div class="order-card">
+                    <div class="order-header">
+                        <div>
+                            <span class="order-id">📋 ${order.id}</span>
+                            <span style="margin-left:12px;font-size:0.82rem;color:var(--text-muted);">
+                                ${new Date(order.createdAt).toLocaleString('zh-CN')}
+                            </span>
+                        </div>
+                        <span class="order-status ${order.status}">${statusText[order.status] || order.status}</span>
+                    </div>
+                    <div class="order-items">
+                        ${order.items.map(item => `
+                            <div class="order-item">
+                                <img src="../${item.image}" alt="${item.name}"
+                                     onerror="this.style.display='none'">
+                                <div class="info">
+                                    <div>${item.name}</div>
+                                    <div style="font-size:0.78rem;color:var(--text-muted);">
+                                        ¥${item.price.toFixed(2)} × ${item.quantity}
+                                    </div>
+                                </div>
+                                <div style="font-weight:600;">¥${item.subtotal.toFixed(2)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="order-footer">
+                        <div style="font-size:0.85rem;color:var(--text-secondary);">
+                            收货人：${order.receiver} | ${order.phone} | ${order.address}
+                        </div>
+                        <div>
+                            <span style="font-size:0.85rem;color:var(--text-secondary);">共 ${order.items.reduce((s,i) => s + i.quantity, 0)} 件 · </span>
+                            <span style="font-size:0.85rem;color:var(--text-secondary);">运费 ¥${order.shipping.toFixed(2)} · </span>
+                            <span class="order-total">合计 ¥${order.total.toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <div style="padding:10px 20px;display:flex;gap:8px;justify-content:flex-end;">
+                        ${order.status === 'pending' ? `
+                            <button class="btn btn-sm btn-success" onclick="payOrder('${order.id}')">💳 立即付款</button>
+                            <button class="btn btn-sm btn-outline" onclick="cancelOrder('${order.id}')">取消订单</button>
+                        ` : ''}
+                        ${order.status === 'shipped' ? `
+                            <button class="btn btn-sm btn-success" onclick="confirmOrder('${order.id}')">✅ 确认收货</button>
+                        ` : ''}
+                        ${order.status === 'completed' ? `
+                            <button class="btn btn-sm btn-outline" onclick="reBuy('${order.id}')">🔄 再次购买</button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            // 暴露操作函数
+            window.payOrder = function(orderId) {
+                updateOrderStatus(orderId, 'paid');
+                toast.success('支付成功！订单 ' + orderId + ' 已付款');
+                renderOrders();
+            };
+
+            window.cancelOrder = function(orderId) {
+                modal.show('确认取消订单', '<p>确定要取消订单 <strong>' + orderId + '</strong> 吗？此操作不可撤销。</p>', [
+                    { text: '再想想', action: 'close', cls: 'btn-outline' },
+                    { text: '确认取消', action: 'confirm', cls: 'btn-danger', callback: () => {
+                        updateOrderStatus(orderId, 'cancelled');
+                        toast.info('订单 ' + orderId + ' 已取消');
+                        renderOrders();
+                    }}
+                ]);
+            };
+
+            window.confirmOrder = function(orderId) {
+                modal.show('确认收货', '<p>确定已收到订单 <strong>' + orderId + '</strong> 的商品吗？</p>', [
+                    { text: '再等等', action: 'close', cls: 'btn-outline' },
+                    { text: '确认收货', action: 'confirm', cls: 'btn-success', callback: () => {
+                        updateOrderStatus(orderId, 'completed');
+                        toast.success('已确认收货！感谢您的购买 🎉');
+                        renderOrders();
+                    }}
+                ]);
+            };
+
+            window.reBuy = function(orderId) {
+                const order = getOrderById(orderId);
+                if (!order) return;
+                order.items.forEach(item => {
+                    cart.add(item.productId, item.quantity);
+                });
+                updateCartBadge();
+                toast.success('商品已加入购物车');
+                window.location.href = 'cart.html';
+            };
+        }
+    });
+    </script>
+</body>
+</html>

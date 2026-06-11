@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>長門番堂 — 动漫周边商城</title>
+    <meta name="description" content="長門番堂 - 二次元动漫周边商城，提供亚克力立牌、徽章、挂画、手办等动漫周边商品。学号：24215220132 姓名：黄政源">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- 顶部导航栏 -->
+    <header class="site-header">
+        <div class="header-inner"></div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+
+        <!-- 轮播图区域 -->
+        <section class="carousel-section">
+            <div class="carousel" id="mainCarousel">
+                <div class="carousel-track" id="carouselTrack"></div>
+                <button class="carousel-btn prev" id="carouselPrev" aria-label="上一张">‹</button>
+                <button class="carousel-btn next" id="carouselNext" aria-label="下一张">›</button>
+                <div class="carousel-dots" id="carouselDots"></div>
+            </div>
+        </section>
+
+        <!-- 分类导航 -->
+        <section class="category-nav">
+            <h3>📂 商品分类</h3>
+            <div class="category-list" id="categoryList"></div>
+        </section>
+
+        <!-- 商品展示区 -->
+        <section id="products">
+            <div class="section-header">
+                <span class="section-title"><span class="icon">🛍️</span> 商品列表</span>
+                <div class="sort-bar">
+                    <span>排序：</span>
+                    <select id="sortSelect">
+                        <option value="default">综合排序</option>
+                        <option value="sales">销量优先</option>
+                        <option value="rating">评分最高</option>
+                        <option value="price-asc">价格从低到高</option>
+                        <option value="price-desc">价格从高到低</option>
+                        <option value="newest">最新上架</option>
+                    </select>
+                </div>
+            </div>
+            <div class="product-grid" id="productGrid"></div>
+            <div id="loadMoreArea" style="text-align:center; padding: 20px;"></div>
+        </section>
+
+        <!-- 畅销榜（表格视图 - yuc.wiki风格） -->
+        <section style="margin-top: 40px;" id="hotRanking">
+            <div class="section-header">
+                <span class="section-title"><span class="icon">🔥</span> 畅销排行榜 TOP 10（周间排行表）</span>
+            </div>
+            <div class="product-table-view">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:50px;">#</th>
+                            <th>商品信息</th>
+                            <th>分类</th>
+                            <th>评分</th>
+                            <th>售价</th>
+                            <th>销量</th>
+                            <th style="width:100px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankingTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="site-footer">
+        <div class="footer-inner"></div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/data.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+    /**
+     * 長門番堂 — 首页逻辑
+     * 学号：24215220132  姓名：黄政源
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+        // ========== 轮播图 ==========
+        const carouselTrack = document.getElementById('carouselTrack');
+        const carouselDots = document.getElementById('carouselDots');
+        let currentSlide = 0;
+
+        function renderCarousel() {
+            carouselTrack.innerHTML = BANNERS.map((b, i) => `
+                <div class="carousel-slide" style="background:${b.bg};" data-link="${b.link}" data-index="${i}">
+                    <h2>${b.title}</h2>
+                    <p>${b.subtitle}</p>
+                </div>
+            `).join('');
+
+            carouselDots.innerHTML = BANNERS.map((_, i) => `
+                <button class="carousel-dot ${i === 0 ? 'active' : ''}" data-index="${i}" aria-label="第${i+1}张"></button>
+            `).join('');
+
+            // 点击跳转
+            carouselTrack.querySelectorAll('.carousel-slide').forEach(slide => {
+                slide.addEventListener('click', () => {
+                    const link = slide.dataset.link;
+                    if (link) {
+                        if (link.startsWith('pages/')) {
+                            window.location.href = link;
+                        } else if (link.startsWith('#')) {
+                            window.location.hash = link;
+                        }
+                    }
+                });
+            });
+
+            // 圆点点击
+            carouselDots.querySelectorAll('.carousel-dot').forEach(dot => {
+                dot.addEventListener('click', function() {
+                    goToSlide(parseInt(this.dataset.index));
+                });
+            });
+        }
+
+        function goToSlide(index) {
+            currentSlide = index;
+            carouselTrack.style.transform = `translateX(-${currentSlide * 100}%)`;
+            carouselDots.querySelectorAll('.carousel-dot').forEach((d, i) => {
+                d.classList.toggle('active', i === currentSlide);
+            });
+        }
+
+        document.getElementById('carouselPrev').addEventListener('click', () => {
+            currentSlide = (currentSlide - 1 + BANNERS.length) % BANNERS.length;
+            goToSlide(currentSlide);
+        });
+
+        document.getElementById('carouselNext').addEventListener('click', () => {
+            currentSlide = (currentSlide + 1) % BANNERS.length;
+            goToSlide(currentSlide);
+        });
+
+        // 自动轮播
+        setInterval(() => {
+            currentSlide = (currentSlide + 1) % BANNERS.length;
+            goToSlide(currentSlide);
+        }, 4500);
+
+        renderCarousel();
+
+        // ========== 分类导航 ==========
+        const categoryList = document.getElementById('categoryList');
+        let activeCategory = 'all';
+
+        // 从URL获取搜索参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchParam = urlParams.get('search') || '';
+
+        function renderCategories() {
+            categoryList.innerHTML = CATEGORIES.map(c => `
+                <button class="${activeCategory === c.id ? 'active' : ''}" data-category="${c.id}">
+                    ${c.icon} ${c.name}
+                </button>
+            `).join('');
+
+            categoryList.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    activeCategory = this.dataset.category;
+                    renderCategories();
+                    renderProducts();
+                });
+            });
+        }
+
+        renderCategories();
+
+        // ========== 商品网格 ==========
+        const productGrid = document.getElementById('productGrid');
+        const sortSelect = document.getElementById('sortSelect');
+
+        function renderProducts() {
+            const sortBy = sortSelect.value;
+            const products = getProducts(activeCategory, searchParam, sortBy);
+
+            if (products.length === 0) {
+                productGrid.innerHTML = `
+                    <div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-muted);">
+                        <div style="font-size:3rem;margin-bottom:16px;">🔍</div>
+                        <p style="font-size:1.1rem;">没有找到匹配的商品</p>
+                        <p style="font-size:0.9rem;margin-top:4px;">请尝试其他关键词或分类</p>
+                    </div>`;
+                return;
+            }
+
+            productGrid.innerHTML = products.map(p => {
+                const inCart = cart.has(p.id);
+                const tagMap = {
+                    '热门': 'hot',
+                    '热卖': 'hot',
+                    '新品': 'new',
+                    '推荐': 'rec',
+                    '限定': 'limited'
+                };
+
+                let discountPercent = Math.round((1 - p.price / p.originalPrice) * 100);
+                // Ensure discount is at least 1 and at most 99
+                if (discountPercent < 1) discountPercent = 1;
+                if (discountPercent > 99) discountPercent = 99;
+
+                return `
+                <div class="product-card" data-id="${p.id}" onclick="window.location.href='pages/product.html?id=${p.id}'">
+                    <div class="card-img">
+                        <img src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><rect fill=%22%23f5f5f5%22 width=%22200%22 height=%22200%22/><text x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23aaa%22 font-size=%2214%22>暂无图片</text></svg>'">
+                        <div class="card-tags">
+                            ${p.tags.map(t => `<span class="card-tag ${tagMap[t] || ''}">${t}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-name">${p.name}</div>
+                        <div class="card-category">${p.category}</div>
+                        <div class="card-footer">
+                            <span class="card-price">
+                                ¥${p.price.toFixed(2)}
+                                <span class="original">¥${p.originalPrice.toFixed(2)}</span>
+                            </span>
+                            <span class="card-sales">已售${p.sales}</span>
+                        </div>
+                    </div>
+                    <div class="card-actions" onclick="event.stopPropagation();">
+                        <button class="btn-add-cart ${inCart ? 'in-cart' : ''}"
+                                onclick="handleAddToCart(${p.id}, this)"
+                                title="${inCart ? '已在购物车中' : '加入购物车'}">
+                            ${inCart ? '✓ 已加入' : '🛒 加购物车'}
+                        </button>
+                        <button class="btn-buy-now" onclick="quickBuy(${p.id})">立即购买</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // 加到购物车处理函数（全局作用域）
+        window.handleAddToCart = function(productId, btn) {
+            cart.add(productId);
+            toast.success('已加入购物车 🛒');
+            btn.textContent = '✓ 已加入';
+            btn.classList.add('in-cart');
+            updateCartBadge();
+        };
+
+        sortSelect.addEventListener('change', renderProducts);
+
+        // 如果URL有搜索参数，填入搜索框
+        if (searchParam) {
+            const searchInput = document.getElementById('headerSearchInput');
+            if (searchInput) {
+                searchInput.value = searchParam;
+            }
+        }
+
+        renderProducts();
+
+        // ========== 畅销排行榜（yuc.wiki表格风格） ==========
+        function renderRanking() {
+            const top10 = getHotProducts(10);
+            const tbody = document.getElementById('rankingTableBody');
+
+            tbody.innerHTML = top10.map((p, i) => `
+                <tr onclick="window.location.href='pages/product.html?id=${p.id}'" style="cursor:pointer;">
+                    <td style="text-align:center;font-weight:700;color:${i < 3 ? 'var(--danger)' : 'var(--text-muted)'};">
+                        ${i < 3 ? ['🥇','🥈','🥉'][i] : (i + 1)}
+                    </td>
+                    <td>
+                        <div class="td-product">
+                            <img src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'">
+                            <div class="info">
+                                <div class="name">${p.name}</div>
+                                <div class="meta">
+                                    ${p.tags.map(t => `【${t}】`).join(' ')}
+                                    原价¥${p.originalPrice.toFixed(2)}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="td-category">${p.category}</td>
+                    <td>⭐ ${p.rating}</td>
+                    <td class="td-price">¥${p.price.toFixed(2)}</td>
+                    <td>${p.sales}件</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();handleAddToCart(${p.id}, this);">
+                            🛒 购买
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        renderRanking();
+
+        updateCartBadge();
+    });
+    </script>
+</body>
+</html>

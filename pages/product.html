@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品详情 — 長門番堂</title>
+    <meta name="description" content="長門番堂商品详情页面。学号：24215220132 姓名：黄政源">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="site-header">
+        <div class="header-inner"></div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <!-- 面包屑 -->
+        <div class="breadcrumb" id="breadcrumb"></div>
+
+        <!-- 商品详情 -->
+        <div id="productDetailContainer">
+            <div class="loading">加载中...</div>
+        </div>
+
+        <!-- 商品信息表（yuc.wiki风格） -->
+        <div id="productInfoTable" style="display:none;">
+            <div class="detail-table-section">
+                <h3>📋 商品详细信息</h3>
+                <table class="info-table">
+                    <tbody id="infoTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 相关推荐 -->
+        <section style="margin-top: 28px;">
+            <div class="section-header">
+                <span class="section-title"><span class="icon">✨</span> 相关推荐</span>
+            </div>
+            <div class="product-grid" id="relatedProducts"></div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="site-footer">
+        <div class="footer-inner"></div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="../js/data.js"></script>
+    <script src="../js/cart.js"></script>
+    <script src="../js/main.js"></script>
+    <script>
+    /**
+     * 長門番堂 — 商品详情页逻辑
+     * 学号：24215220132  姓名：黄政源
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+        updateCartBadge();
+
+        const productId = getUrlParam('id');
+        if (!productId) {
+            document.getElementById('productDetailContainer').innerHTML = `
+                <div class="cart-empty">
+                    <div class="icon">🔍</div>
+                    <h3>商品不存在</h3>
+                    <p>请从商品列表中选择一个商品</p>
+                    <a href="../index.html" class="btn btn-primary" style="margin-top:16px;">返回首页</a>
+                </div>`;
+            return;
+        }
+
+        // 模拟Ajax获取商品详情
+        fetchProductByIdAsync(productId)
+            .then(response => {
+                renderProductDetail(response.data);
+            })
+            .catch(error => {
+                document.getElementById('productDetailContainer').innerHTML = `
+                    <div class="cart-empty">
+                        <div class="icon">😢</div>
+                        <h3>${error.message}</h3>
+                        <a href="../index.html" class="btn btn-primary" style="margin-top:16px;">返回首页</a>
+                    </div>`;
+            });
+
+        function renderProductDetail(product) {
+            // 面包屑
+            document.getElementById('breadcrumb').innerHTML = `
+                <a href="../index.html">首页</a> <span>›</span>
+                <a href="../index.html#category-${encodeURIComponent(product.category)}">${product.category}</a> <span>›</span>
+                <span>${product.name}</span>
+            `;
+
+            // 设置页面标题
+            document.title = `${product.name} — 長門番堂`;
+
+            // 计算折扣
+            let discountPercent = Math.round((1 - product.price / product.originalPrice) * 100);
+            if (discountPercent < 1) discountPercent = 1;
+            if (discountPercent > 99) discountPercent = 99;
+
+            const inCart = cart.has(product.id);
+            const cartQty = cart.getQuantity(product.id);
+
+            const tagMap = {
+                '热门': 'hot', '热卖': 'hot',
+                '新品': 'new', '推荐': 'rec', '限定': 'limited'
+            };
+
+            // 商品详情主体
+            document.getElementById('productDetailContainer').innerHTML = `
+                <div class="product-detail">
+                    <div class="detail-gallery">
+                        <img src="../${product.image}" alt="${product.name}"
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22300%22><rect fill=%22%23f5f5f5%22 width=%22300%22 height=%22300%22/><text x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23aaa%22 font-size=%2216%22>暂无图片</text></svg>'">
+                    </div>
+                    <div class="detail-info">
+                        <h1>${product.name}</h1>
+                        <div class="detail-meta">
+                            <span>📂 分类：${product.category}</span>
+                            <span>⭐ 评分：${product.rating}分</span>
+                            <span>📦 已售：${product.sales}件</span>
+                            <span>📅 上架：${product.date}</span>
+                        </div>
+                        <div class="detail-tags" style="margin-bottom:12px;">
+                            ${product.tags.map(t => `<span class="card-tag ${tagMap[t] || ''}">${t}</span>`).join(' ')}
+                        </div>
+                        <div class="detail-price-area">
+                            <span class="current-price">¥${product.price.toFixed(2)}</span>
+                            <span class="original-price">¥${product.originalPrice.toFixed(2)}</span>
+                            <span class="discount">-${discountPercent}%</span>
+                        </div>
+                        <div class="detail-specs">
+                            <h3>📝 规格参数</h3>
+                            <ul>
+                                ${product.specs.map(s => `<li>• ${s}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="detail-quantity">
+                            <span>数量：</span>
+                            <div class="quantity-input">
+                                <button id="qtyMinus">−</button>
+                                <input type="number" id="qtyInput" value="1" min="1" max="${product.stock}" readonly>
+                                <button id="qtyPlus">+</button>
+                            </div>
+                            <span style="font-size:0.82rem;color:var(--text-muted);">库存 ${product.stock} 件</span>
+                        </div>
+                        <div class="detail-actions">
+                            <button class="btn btn-primary btn-lg" id="btnAddToCart" style="flex:1;">
+                                ${inCart ? '✓ 已在购物车中（' + cartQty + '件）' : '🛒 加入购物车'}
+                            </button>
+                            <button class="btn btn-danger btn-lg" id="btnBuyNow" style="flex:1;">⚡ 立即购买</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 商品描述
+            const descHTML = product.description;
+
+            // 商品信息表
+            document.getElementById('productInfoTable').style.display = 'block';
+            document.getElementById('infoTableBody').innerHTML = `
+                <tr><td>商品名称</td><td>${product.name}</td></tr>
+                <tr><td>商品分类</td><td>${product.category}</td></tr>
+                <tr><td>商品描述</td><td>${descHTML}</td></tr>
+                <tr><td>商品规格</td><td>${product.specs.join('；')}</td></tr>
+                <tr><td>售价</td><td style="color:var(--danger);font-weight:700;">¥${product.price.toFixed(2)}（原价 ¥${product.originalPrice.toFixed(2)}，节省 ¥${(product.originalPrice - product.price).toFixed(2)}）</td></tr>
+                <tr><td>库存</td><td>${product.stock} 件</td></tr>
+                <tr><td>累计销量</td><td>${product.sales} 件</td></tr>
+                <tr><td>用户评分</td><td>⭐ ${product.rating} / 5.0</td></tr>
+                <tr><td>上架时间</td><td>${product.date}</td></tr>
+                <tr><td>商品编号</td><td>PROD-${String(product.id).padStart(4, '0')}</td></tr>
+            `;
+
+            // 相关推荐（同分类的其他商品）
+            const related = PRODUCTS.filter(p => p.category === product.category && p.id !== product.id);
+            if (related.length === 0) {
+                // 如果同分类没有其他商品，则随机取其他商品
+                const others = PRODUCTS.filter(p => p.id !== product.id);
+                const shuffled = others.sort(() => Math.random() - 0.5).slice(0, 4);
+                renderRelated(shuffled);
+            } else {
+                renderRelated(related.slice(0, 4));
+            }
+
+            // 数量选择
+            let quantity = 1;
+            const qtyInput = document.getElementById('qtyInput');
+            const qtyMinus = document.getElementById('qtyMinus');
+            const qtyPlus = document.getElementById('qtyPlus');
+
+            function updateQtyUI() {
+                qtyInput.value = quantity;
+                qtyMinus.disabled = quantity <= 1;
+                qtyPlus.disabled = quantity >= product.stock;
+            }
+
+            qtyMinus.addEventListener('click', () => {
+                if (quantity > 1) { quantity--; updateQtyUI(); }
+            });
+
+            qtyPlus.addEventListener('click', () => {
+                if (quantity < product.stock) { quantity++; updateQtyUI(); }
+            });
+
+            // 加入购物车
+            document.getElementById('btnAddToCart').addEventListener('click', function() {
+                cart.add(product.id, quantity);
+                const qty = cart.getQuantity(product.id);
+                this.textContent = '✓ 已在购物车中（' + qty + '件）';
+                toast.success(`已将 ${quantity} 件「${product.name}」加入购物车`);
+                updateCartBadge();
+            });
+
+            // 立即购买
+            document.getElementById('btnBuyNow').addEventListener('click', function() {
+                if (!isLoggedIn()) {
+                    window.location.href = 'login.html?redirect=checkout';
+                    return;
+                }
+                cart.add(product.id, quantity);
+                updateCartBadge();
+                window.location.href = 'checkout.html';
+            });
+
+            updateQtyUI();
+        }
+
+        function renderRelated(products) {
+            const grid = document.getElementById('relatedProducts');
+            grid.innerHTML = products.map(p => {
+                const tagMap = { '热门': 'hot', '热卖': 'hot', '新品': 'new', '推荐': 'rec', '限定': 'limited' };
+                return `
+                <div class="product-card" onclick="window.location.href='product.html?id=${p.id}'">
+                    <div class="card-img">
+                        <img src="../${p.image}" alt="${p.name}" loading="lazy">
+                        <div class="card-tags">
+                            ${p.tags.map(t => `<span class="card-tag ${tagMap[t] || ''}">${t}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-name">${p.name}</div>
+                        <div class="card-category">${p.category}</div>
+                        <div class="card-footer">
+                            <span class="card-price">¥${p.price.toFixed(2)}</span>
+                            <span class="card-sales">已售${p.sales}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('') || '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);">暂无相关推荐</div>';
+        }
+    });
+    </script>
+</body>
+</html>
