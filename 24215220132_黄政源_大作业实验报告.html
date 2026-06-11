@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -114,46 +114,7 @@
 </ul>
 
 <h4>2.2.2 系统功能结构图</h4>
-<div class="img-placeholder">
-    【图2-1：系统功能结构图】
-    <br><br>
-    ┌─────────────────────────────────────────────────────┐
-    │&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;長門番堂 动漫周边商城&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;│
-    ├─────────────────────────────────────────────────────┤
-    │&emsp;首页&emsp;&emsp;登录/注册&emsp;商品详情&emsp;购物车&emsp;结算支付&emsp;订单管理&emsp;个人中心&emsp;│
-    ├──────────┬──────────┬──────────┬───────────────────┤
-    │ 轮播图   │ 登录表单  │ 商品大图  │ 商品列表（增删改） │
-    │ 分类导航 │ 注册表单  │ 规格参数  │ 数量调整          │
-    │ 搜索功能 │ 格式校验  │ 价格信息  │ 价格汇总          │
-    │ 商品网格 │ 用户名   │ 数量选择  │ 清空购物车        │
-    │ 畅销排行 │ 密码     │ 加购/购买 │                   │
-    │（表格）  │ 邮箱     │ 信息表    │                   │
-    │         │ 手机号   │ 相关推荐  │                   │
-    └──────────┴──────────┴──────────┴───────────────────┘
-</div>
-
 <h4>2.2.3 网站文件目录存储结构</h4>
-<div class="img-placeholder">
-    【图2-2：项目文件目录结构】
-    <br><br>
-    exam/<br>
-    ├── index.html&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;# 首页<br>
-    ├── css/<br>
-    │&emsp;&emsp; └── style.css&emsp;&emsp;&emsp;&emsp;&emsp;# 全局样式表<br>
-    ├── js/<br>
-    │&emsp;&emsp; ├── data.js&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;# 商品/用户/订单数据管理<br>
-    │&emsp;&emsp; ├── cart.js&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;# 购物车与结算模块<br>
-    │&emsp;&emsp; └── main.js&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;# 导航/Toast/通用组件<br>
-    ├── images/products/&emsp;&emsp;&emsp;&emsp;# 商品图片（6张）<br>
-    └── pages/<br>
-    &emsp;&emsp;&emsp; ├── login.html&emsp;&emsp;&emsp;&emsp;# 登录/注册<br>
-    &emsp;&emsp;&emsp; ├── product.html&emsp;&emsp;&emsp;# 商品详情<br>
-    &emsp;&emsp;&emsp; ├── cart.html&emsp;&emsp;&emsp;&emsp;&emsp;# 购物车<br>
-    &emsp;&emsp;&emsp; ├── checkout.html&emsp;&emsp;&emsp;# 结算支付<br>
-    &emsp;&emsp;&emsp; ├── orders.html&emsp;&emsp;&emsp;&emsp;# 订单管理<br>
-    &emsp;&emsp;&emsp; └── profile.html&emsp;&emsp;&emsp;# 个人中心
-</div>
-
 <h4>2.2.4 所使用的技术</h4>
 <table class="data-table">
     <tr><th>技术类别</th><th>具体技术</th><th>应用说明</th></tr>
@@ -193,12 +154,6 @@
 <p><strong>畅销排行榜（核心创新点）：</strong>参考yuc.wiki的番剧时间表布局，使用HTML table标签展示TOP10畅销商品的排行榜信息，包含排名（前三用🥇🥈🥉）、商品缩略图与名称、分类、评分、售价、销量、购买按钮。这种表格驱动的信息展示方式是yuc.wiki最标志性的设计特征。</p>
 <p><strong>搜索与排序：</strong>搜索框支持商品名称、分类、标签、描述的全文匹配。排序功能提供综合、销量、评分、价格升降、上架时间等6种排序方式。</p>
 
-<div class="img-placeholder">
-    【图4-1：首页完整截图 — 包括轮播图、分类导航、商品网格、畅销排行榜表格】
-    <br><br>
-    （请在浏览器中打开 index.html 并截图粘贴至此）
-</div>
-
 <h4>4.1.2 登录注册模块（pages/login.html）</h4>
 <p><strong>开发思路：</strong>登录注册页面采用居中卡片式布局（flexbox垂直水平居中），使用Tab切换登录和注册两个表单。表单验证分为前端HTML5属性验证和JavaScript逻辑验证两层。</p>
 <p><strong>登录验证：</strong>检查用户名和密码是否为空；通过localStorage中存储的用户数据验证用户名和密码是否匹配（模拟后端数据库查询）。</p>
@@ -225,12 +180,6 @@ if (!/^[a-zA-Z0-9一-龥]{4,16}$/.test(username)) {
     hasError = true;
 }
 </pre>
-
-<div class="img-placeholder">
-    【图4-2：登录/注册页面截图 — 展示登录表单和注册表单】
-    <br><br>
-    （请在浏览器中打开 pages/login.html 并截图粘贴至此）
-</div>
 
 <h4>4.1.3 商品详情模块（pages/product.html）</h4>
 <p><strong>开发思路：</strong>商品详情页采用左右双栏布局（CSS Grid两列），左侧为商品大图展示区，右侧为商品信息区。信息区包含商品名称、分类/评分/销量/上架时间元信息、标签、价格（现价+原价+折扣率）、规格参数列表、数量选择器和操作按钮。</p>
@@ -260,12 +209,6 @@ function fetchProductByIdAsync(id) {
 }
 </pre>
 
-<div class="img-placeholder">
-    【图4-3：商品详情页截图 — 展示商品大图、价格信息、规格参数、信息表、相关推荐】
-    <br><br>
-    （请在浏览器中打开 pages/product.html?id=3 并截图粘贴至此）
-</div>
-
 <h4>4.1.4 购物车模块（pages/cart.html）</h4>
 <p><strong>开发思路：</strong>购物车页面采用表格布局展示购物车中的商品列表，包含商品信息（缩略图+名称+分类）、单价、数量（可调整）、小计、删除操作。底部为购物车汇总栏，展示总件数、合计金额、满199包邮提示和"去结算"按钮。</p>
 <p><strong>ShoppingCart类设计：</strong>将购物车逻辑封装为ShoppingCart类，包含getAll()（获取全部）、add()（添加）、remove()（移除）、updateQuantity()（更新数量）、clear()（清空）、getTotalCount()（总数）、getTotalAmount()（总金额）、getDetailedItems()（含商品详情的购物车项目）等核心方法。数据通过localStorage持久化，页面刷新不丢失。</p>
@@ -282,12 +225,6 @@ class ShoppingCart {
     onChange()  { /* 数据变化时更新页面徽标 */ }
 }
 </pre>
-
-<div class="img-placeholder">
-    【图4-4：购物车页面截图 — 展示商品列表、数量调整、价格汇总】
-    <br><br>
-    （请在浏览器中打开 pages/cart.html 并截图粘贴至此）
-</div>
 
 <h4>4.1.5 结算支付模块（pages/checkout.html）</h4>
 <p><strong>开发思路：</strong>结算页面采用左右双栏布局——左侧为收货信息和支付方式选择，右侧为订单汇总（sticky定位，滚动时固定可见）。</p>
@@ -310,20 +247,8 @@ submitOrder(orderInfo) {
 }
 </pre>
 
-<div class="img-placeholder">
-    【图4-5：结算页面截图 — 展示收货信息、配送方式、支付方式、订单汇总】
-    <br><br>
-    （请在浏览器中打开 pages/checkout.html 并截图粘贴至此）
-</div>
-
 <h4>4.1.6 订单管理模块（pages/orders.html）</h4>
 <p><strong>开发思路：</strong>订单管理页面提供状态筛选标签（全部/待付款/已付款/运输中/已完成/已取消）和订单卡片列表。每个订单卡片展示订单编号、时间、状态、商品列表、收货信息、费用汇总，以及对应的操作按钮（待付款→立即付款+取消；运输中→确认收货；已完成→再次购买）。操作使用模态框进行二次确认。</p>
-
-<div class="img-placeholder">
-    【图4-6：订单管理页面截图 — 展示订单列表、状态筛选、操作按钮】
-    <br><br>
-    （请在浏览器中打开 pages/orders.html 并截图粘贴至此）
-</div>
 
 <h4>4.1.7 个人中心模块（pages/profile.html）</h4>
 <p><strong>开发思路：</strong>个人中心采用侧边栏+内容区双栏布局。侧边栏展示用户头像、用户名、邮箱和导航菜单（个人概览、编辑资料、安全设置、我的积分、我的订单、购物车、退出登录）。内容区根据所选Tab动态渲染。</p>
@@ -331,12 +256,6 @@ submitOrder(orderInfo) {
 <p><strong>编辑资料：</strong>提供邮箱和手机号的修改功能（用户名不可修改），修改后同步更新localStorage和session用户状态。</p>
 <p><strong>安全设置：</strong>提供密码修改功能，需验证当前密码，新密码需满足长度要求和两次一致性校验。</p>
 <p><strong>积分系统：</strong>展示当前积分、积分获取规则（注册+100、消费1元+1分、评价+10分、签到+5分），以及每日签到按钮。</p>
-
-<div class="img-placeholder">
-    【图4-7：个人中心页面截图 — 展示概览统计、编辑资料、安全设置、积分系统】
-    <br><br>
-    （请在浏览器中打开 pages/profile.html 并截图粘贴至此）
-</div>
 
 <h3>4.2 设计风格分析——yuc.wiki的模仿与创新</h3>
 
@@ -387,14 +306,7 @@ submitOrder(orderInfo) {
 <p>优势：精确控制；劣势：断点间过渡不够流畅，维护成本高。</p>
 <p><strong>结论：</strong>方案一更简洁高效，本项目中商品网格采用方案一，页面整体布局（如结算页双栏、个人中心双栏）在768px处采用方案二切换为单栏布局。</p>
 
-<div class="img-placeholder">
-    【图4-8：移动端响应式截图对比 — 桌面端（1200px）、平板端（768px）、手机端（375px）】
-    <br><br>
-    （请在浏览器中调整窗口宽度并分别截图，粘贴至此）
-</div>
-
 <!-- ==================== 五、操作异常问题与解决方案 ==================== -->
-<div class="page-break"></div>
 <h2>五、操作异常问题与解决方案</h2>
 
 <table class="data-table">
