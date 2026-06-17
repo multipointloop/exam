@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>结算页面 — 長門番堂</title>
-    <meta name="description" content="長門番堂订单结算页面。学号：24215220132 姓名：黄政源">
+    <title>结算页面 — 長門商城</title>
+    <meta name="description" content="長門商城订单结算页面。学号：24215220132 姓名：黄政源">
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -41,7 +41,7 @@
     <script src="../js/main.js"></script>
     <script>
     /**
-     * 長門番堂 — 结算页逻辑
+     * 長門商城 — 结算页逻辑
      * 学号：24215220132  姓名：黄政源
      */
     document.addEventListener('DOMContentLoaded', function() {
@@ -73,13 +73,60 @@
 
         let selectedShipping = subtotal >= 199 ? 'free' : 'standard';
         let selectedPayment = 'alipay';
+        let usePoints = 0;        // 用户选择使用的积分数
+        let pointsDiscount = 0;   // 积分抵扣金额
 
+        // ==================== 收货地址管理 ====================
+        function getSavedAddresses() {
+            try {
+                const data = localStorage.getItem('nagato_shop_addresses_' + user.id);
+                return data ? JSON.parse(data) : [];
+            } catch(e) { return []; }
+        }
+
+        function saveAddresses(addresses) {
+            localStorage.setItem('nagato_shop_addresses_' + user.id, JSON.stringify(addresses));
+        }
+
+        function addSavedAddress(addr) {
+            const addresses = getSavedAddresses();
+            // 去重
+            const exists = addresses.find(a =>
+                a.receiver === addr.receiver &&
+                a.phone === addr.phone &&
+                a.address === addr.address
+            );
+            if (exists) return false;
+            addresses.unshift({ id: Date.now(), ...addr });
+            if (addresses.length > 10) addresses.length = 10;
+            saveAddresses(addresses);
+            return true;
+        }
+
+        function deleteSavedAddress(id) {
+            const addresses = getSavedAddresses();
+            saveAddresses(addresses.filter(a => a.id !== id));
+        }
+
+        // ==================== 初始渲染 ====================
         renderCheckout();
 
         function renderCheckout() {
             const shippingPrice = shippingMethods.find(m => m.id === selectedShipping)?.actualPrice ||
                                    shippingMethods.find(m => m.id === selectedShipping)?.price || 8;
-            const total = subtotal + shippingPrice;
+            const userPoints = getUserPoints();
+            const maxUsablePoints = Math.min(userPoints, Math.floor((subtotal + shippingPrice) * 1000));
+
+            // 调整积分不超过最大值
+            if (usePoints > maxUsablePoints) {
+                usePoints = Math.floor(maxUsablePoints / 50) * 50;
+            }
+            // 重新计算积分抵扣
+            pointsDiscount = usePoints * 0.001;
+
+            const total = Math.max(0, subtotal + shippingPrice - pointsDiscount);
+
+            const savedAddresses = getSavedAddresses();
 
             document.getElementById('checkoutContent').innerHTML = `
                 <div class="checkout-page">
@@ -88,6 +135,23 @@
                         <!-- 收货地址 -->
                         <div class="checkout-section">
                             <h3>📍 收货信息</h3>
+                            ${savedAddresses.length > 0 ? `
+                            <div style="margin-bottom:12px;">
+                                <label style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:4px;display:block;">
+                                    📋 常用地址
+                                </label>
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;" id="savedAddrList">
+                                    ${savedAddresses.map(a => `
+                                        <div class="saved-addr-chip" data-id="${a.id}"
+                                             title="${a.receiver} | ${a.phone} | ${a.address}"
+                                             style="cursor:pointer;padding:6px 10px;border:1px solid var(--border-medium);border-radius:16px;font-size:0.8rem;background:var(--bg-secondary);transition:all 0.2s;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                            📍 ${a.receiver} · ${a.address.substring(0, 15)}...
+                                            <span class="addr-del" data-id="${a.id}" style="margin-left:4px;color:var(--text-muted);cursor:pointer;font-weight:bold;"
+                                                  title="删除此地址">×</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>` : ''}
                             <form id="addressForm" novalidate>
                                 <div class="form-row">
                                     <div class="form-group">
@@ -113,6 +177,11 @@
                                     <label>订单备注</label>
                                     <textarea class="form-control" id="remark"
                                               placeholder="选填：如有特殊要求请备注"></textarea>
+                                </div>
+                                <div style="text-align:right;">
+                                    <button type="button" class="btn btn-sm btn-outline" id="btnSaveAddress">
+                                        💾 保存为常用地址
+                                    </button>
                                 </div>
                             </form>
                         </div>
@@ -152,11 +221,39 @@
                                 `).join('')}
                             </div>
                         </div>
+
+                        <!-- 积分抵扣 -->
+                        <div class="checkout-section" style="margin-top:16px;" id="pointsSection">
+                            <h3>💰 积分抵扣 <span style="font-size:0.8rem;color:var(--text-muted);font-weight:400;">（1000积分 = 1元）</span></h3>
+                            <div id="pointsInfo" style="margin-bottom:8px;font-size:0.85rem;color:var(--text-secondary);">
+                                当前积分：<strong style="color:var(--warning);">${userPoints}</strong> 分
+                                （最多可用 <strong>${maxUsablePoints}</strong> 分，抵扣 ¥${(maxUsablePoints * 0.001).toFixed(2)}）
+                            </div>
+                            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;" id="pointsControls">
+                                <button class="btn btn-sm btn-outline" id="btnPointsMinus50"
+                                        ${usePoints < 50 ? 'disabled' : ''}
+                                        style="min-width:36px;">−50</button>
+                                <span style="font-size:1.1rem;font-weight:700;min-width:60px;text-align:center;" id="pointsUsedDisplay">${usePoints}</span>
+                                <span style="font-size:0.85rem;color:var(--text-muted);">分</span>
+                                <button class="btn btn-sm btn-outline" id="btnPointsPlus50"
+                                        ${usePoints + 50 > maxUsablePoints ? 'disabled' : ''}
+                                        style="min-width:36px;">+50</button>
+                                <span style="font-size:0.9rem;color:var(--text-secondary);margin-left:8px;">
+                                    = 抵扣 <strong style="color:var(--danger);" id="pointsDiscountDisplay">¥${pointsDiscount.toFixed(2)}</strong>
+                                </span>
+                                ${usePoints > 0 ? `
+                                <button class="btn btn-sm btn-outline" id="btnClearPoints"
+                                        style="color:var(--danger);border-color:var(--danger);margin-left:4px;">
+                                    取消使用
+                                </button>` : ''}
+                            </div>
+                            <div id="pointsError" style="font-size:0.8rem;color:var(--danger);margin-top:6px;display:none;"></div>
+                        </div>
                     </div>
 
                     <!-- 右侧：订单汇总 -->
                     <div>
-                        <div class="order-summary">
+                        <div class="order-summary" id="orderSummary">
                             <h3>📋 订单汇总</h3>
                             ${items.map(item => `
                                 <div class="summary-item">
@@ -174,7 +271,7 @@
                                 </div>
                             `).join('')}
 
-                            <div class="summary-totals">
+                            <div class="summary-totals" id="summaryTotals">
                                 <div class="row">
                                     <span>商品小计（${items.reduce((s,i) => s + i.quantity, 0)}件）</span>
                                     <span>¥${subtotal.toFixed(2)}</span>
@@ -183,16 +280,24 @@
                                     <span>配送费</span>
                                     <span>${shippingPrice === 0 ? '<span style="color:var(--success);">免运费</span>' : '¥' + shippingPrice.toFixed(2)}</span>
                                 </div>
+                                ${pointsDiscount > 0 ? `
+                                <div class="row" style="color:var(--success);" id="pointsDiscountRow">
+                                    <span>积分抵扣（<span id="pointsUsedInSummary">${usePoints}</span>分）</span>
+                                    <span>-¥<span id="pointsDiscountInSummary">${pointsDiscount.toFixed(2)}</span></span>
+                                </div>` : ''}
                                 <div class="row total">
                                     <span>应付总额</span>
-                                    <span>¥${total.toFixed(2)}</span>
+                                    <span id="totalAmount">¥${total.toFixed(2)}</span>
+                                </div>
+                                <div style="text-align:right;font-size:0.78rem;color:var(--text-muted);margin-top:4px;">
+                                    支付后预计获得 <span id="earnedPointsPreview">${Math.floor(total)}</span> 积分
                                 </div>
                             </div>
 
                             <button class="btn btn-danger btn-lg btn-block"
                                     style="margin-top:20px;"
                                     id="btnSubmitOrder">
-                                🔒 提交订单 · ¥${total.toFixed(2)}
+                                🔒 提交订单 · <span id="btnTotal">¥${total.toFixed(2)}</span>
                             </button>
                             <p style="text-align:center;margin-top:10px;font-size:0.78rem;color:var(--text-muted);">
                                 提交订单即表示同意《用户协议》和《隐私政策》
@@ -201,6 +306,156 @@
                     </div>
                 </div>
             `;
+
+            bindAllEvents();
+        }
+
+        // ==================== 仅更新积分相关的UI（不重建表单） ====================
+        function updatePointsUI() {
+            const shippingPrice = shippingMethods.find(m => m.id === selectedShipping)?.actualPrice ||
+                                   shippingMethods.find(m => m.id === selectedShipping)?.price || 8;
+            const userPoints = getUserPoints();
+            const maxUsablePoints = Math.min(userPoints, Math.floor((subtotal + shippingPrice) * 1000));
+
+            if (usePoints > maxUsablePoints) {
+                usePoints = Math.floor(maxUsablePoints / 50) * 50;
+            }
+            pointsDiscount = usePoints * 0.001;
+            const total = Math.max(0, subtotal + shippingPrice - pointsDiscount);
+
+            // 更新积分信息
+            const pointsInfo = document.getElementById('pointsInfo');
+            if (pointsInfo) {
+                pointsInfo.innerHTML = `
+                    当前积分：<strong style="color:var(--warning);">${userPoints}</strong> 分
+                    （最多可用 <strong>${maxUsablePoints}</strong> 分，抵扣 ¥${(maxUsablePoints * 0.001).toFixed(2)}）
+                `;
+            }
+
+            // 更新积分显示
+            const pointsUsedDisplay = document.getElementById('pointsUsedDisplay');
+            if (pointsUsedDisplay) pointsUsedDisplay.textContent = usePoints;
+
+            // 更新抵扣金额显示
+            const pointsDiscountDisplay = document.getElementById('pointsDiscountDisplay');
+            if (pointsDiscountDisplay) pointsDiscountDisplay.textContent = '¥' + pointsDiscount.toFixed(2);
+
+            // 更新按钮状态
+            const btnMinus = document.getElementById('btnPointsMinus50');
+            const btnPlus = document.getElementById('btnPointsPlus50');
+            if (btnMinus) btnMinus.disabled = usePoints < 50;
+            if (btnPlus) btnPlus.disabled = usePoints + 50 > maxUsablePoints;
+
+            // 更新取消按钮
+            const pointsControls = document.getElementById('pointsControls');
+            const existingClear = document.getElementById('btnClearPoints');
+            if (usePoints > 0 && !existingClear) {
+                const clearBtn = document.createElement('button');
+                clearBtn.className = 'btn btn-sm btn-outline';
+                clearBtn.id = 'btnClearPoints';
+                clearBtn.style.cssText = 'color:var(--danger);border-color:var(--danger);margin-left:4px;';
+                clearBtn.textContent = '取消使用';
+                clearBtn.addEventListener('click', function() {
+                    usePoints = 0;
+                    pointsDiscount = 0;
+                    updatePointsUI();
+                });
+                if (pointsControls) pointsControls.appendChild(clearBtn);
+            } else if (usePoints === 0 && existingClear) {
+                existingClear.remove();
+            }
+
+            // 更新订单汇总中的积分行
+            const pointsDiscountRow = document.getElementById('pointsDiscountRow');
+            if (pointsDiscount > 0) {
+                if (pointsDiscountRow) {
+                    const usedInSummary = document.getElementById('pointsUsedInSummary');
+                    const discountInSummary = document.getElementById('pointsDiscountInSummary');
+                    if (usedInSummary) usedInSummary.textContent = usePoints;
+                    if (discountInSummary) discountInSummary.textContent = pointsDiscount.toFixed(2);
+                } else {
+                    // 添加积分抵扣行
+                    const summaryTotals = document.getElementById('summaryTotals');
+                    if (summaryTotals) {
+                        const newRow = document.createElement('div');
+                        newRow.className = 'row';
+                        newRow.id = 'pointsDiscountRow';
+                        newRow.style.color = 'var(--success)';
+                        newRow.innerHTML = `
+                            <span>积分抵扣（<span id="pointsUsedInSummary">${usePoints}</span>分）</span>
+                            <span>-¥<span id="pointsDiscountInSummary">${pointsDiscount.toFixed(2)}</span></span>
+                        `;
+                        // 插入到 total 行之前
+                        const totalRow = summaryTotals.querySelector('.row.total');
+                        if (totalRow) {
+                            summaryTotals.insertBefore(newRow, totalRow);
+                        }
+                    }
+                }
+            } else {
+                if (pointsDiscountRow) pointsDiscountRow.remove();
+            }
+
+            // 更新应付总额
+            const totalAmount = document.getElementById('totalAmount');
+            if (totalAmount) totalAmount.textContent = '¥' + total.toFixed(2);
+
+            // 更新提交按钮
+            const btnTotal = document.getElementById('btnTotal');
+            if (btnTotal) btnTotal.textContent = '¥' + total.toFixed(2);
+
+            // 更新预计获得积分
+            const earnedPreview = document.getElementById('earnedPointsPreview');
+            if (earnedPreview) earnedPreview.textContent = Math.floor(total);
+        }
+
+        function bindAllEvents() {
+            // 绑定常用地址点击
+            document.querySelectorAll('.saved-addr-chip').forEach(chip => {
+                chip.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('addr-del')) return;
+                    const id = parseInt(this.dataset.id);
+                    const addresses = getSavedAddresses();
+                    const addr = addresses.find(a => a.id === id);
+                    if (addr) {
+                        document.getElementById('receiver').value = addr.receiver || '';
+                        document.getElementById('phone').value = addr.phone || '';
+                        document.getElementById('address').value = addr.address || '';
+                        toast.info('已填入地址：' + addr.receiver);
+                    }
+                });
+            });
+
+            // 绑定删除地址
+            document.querySelectorAll('.addr-del').forEach(del => {
+                del.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const id = parseInt(this.dataset.id);
+                    deleteSavedAddress(id);
+                    renderCheckout();
+                });
+            });
+
+            // 绑定保存地址按钮
+            const btnSave = document.getElementById('btnSaveAddress');
+            if (btnSave) {
+                btnSave.addEventListener('click', function() {
+                    const receiver = document.getElementById('receiver').value.trim();
+                    const phone = document.getElementById('phone').value.trim();
+                    const address = document.getElementById('address').value.trim();
+                    if (!receiver || !phone || !address) {
+                        toast.warning('请填写完整的收货信息后再保存');
+                        return;
+                    }
+                    const result = addSavedAddress({ receiver, phone, address });
+                    if (result) {
+                        toast.success('地址已保存');
+                        renderCheckout();
+                    } else {
+                        toast.info('该地址已存在');
+                    }
+                });
+            }
 
             // 绑定配送方式选择
             document.querySelectorAll('[data-shipping]').forEach(el => {
@@ -222,10 +477,48 @@
                 });
             });
 
+            // 绑定积分 +/- 按钮
+            const btnMinus = document.getElementById('btnPointsMinus50');
+            const btnPlus = document.getElementById('btnPointsPlus50');
+            const btnClear = document.getElementById('btnClearPoints');
+
+            if (btnMinus) {
+                btnMinus.addEventListener('click', function() {
+                    if (usePoints >= 50) {
+                        usePoints -= 50;
+                        updatePointsUI();
+                    }
+                });
+            }
+
+            if (btnPlus) {
+                btnPlus.addEventListener('click', function() {
+                    const shippingPrice = shippingMethods.find(m => m.id === selectedShipping)?.actualPrice ||
+                                           shippingMethods.find(m => m.id === selectedShipping)?.price || 8;
+                    const userPoints = getUserPoints();
+                    const maxUsable = Math.min(userPoints, Math.floor((subtotal + shippingPrice) * 1000));
+                    if (usePoints + 50 <= maxUsable) {
+                        usePoints += 50;
+                        updatePointsUI();
+                    }
+                });
+            }
+
+            if (btnClear) {
+                btnClear.addEventListener('click', function() {
+                    usePoints = 0;
+                    pointsDiscount = 0;
+                    updatePointsUI();
+                });
+            }
+
             // 提交订单
-            document.getElementById('btnSubmitOrder').addEventListener('click', function() {
-                submitOrder();
-            });
+            const btnSubmit = document.getElementById('btnSubmitOrder');
+            if (btnSubmit) {
+                btnSubmit.addEventListener('click', function() {
+                    submitOrder();
+                });
+            }
         }
 
         function submitOrder() {
@@ -263,10 +556,34 @@
 
             if (hasError) return;
 
+            // 验证积分抵扣（最低50积分）
+            if (usePoints > 0) {
+                if (usePoints > getUserPoints()) {
+                    toast.error('积分不足，请重新输入');
+                    return;
+                }
+                if (usePoints < 50) {
+                    toast.warning('至少需要50积分才能抵扣');
+                    return;
+                }
+            }
+
             // 禁用按钮防止重复提交
             const btn = document.getElementById('btnSubmitOrder');
             btn.disabled = true;
             btn.textContent = '⏳ 提交中...';
+
+            // 先扣减积分
+            let pointsDeducted = false;
+            if (usePoints > 0) {
+                pointsDeducted = deductUserPoints(user.id, usePoints);
+                if (!pointsDeducted) {
+                    toast.error('积分抵扣失败，请重试');
+                    btn.disabled = false;
+                    btn.textContent = '🔒 提交订单';
+                    return;
+                }
+            }
 
             // 模拟Ajax提交
             setTimeout(() => {
@@ -276,13 +593,29 @@
                     address: address,
                     remark: remark,
                     shippingMethod: selectedShipping,
-                    paymentMethod: selectedPayment
+                    paymentMethod: selectedPayment,
+                    pointsUsed: usePoints,
+                    pointsDiscount: pointsDiscount
                 });
 
                 if (result.success) {
+                    // 下单成功奖励积分
+                    const earnPoints = Math.floor(result.order.total);
+                    if (earnPoints > 0) {
+                        updateUserPoints(user.id, earnPoints, `订单 ${result.order.id} 奖励`);
+                        const allOrders = getOrders();
+                        const idx = allOrders.findIndex(o => o.id === result.order.id);
+                        if (idx >= 0) {
+                            allOrders[idx].pointsEarned = true;
+                            saveOrders(allOrders);
+                        }
+                    }
                     updateCartBadge();
                     showSuccessModal(result.order);
                 } else {
+                    if (pointsDeducted) {
+                        updateUserPoints(user.id, usePoints, '订单失败，退还积分');
+                    }
                     toast.error(result.message);
                     btn.disabled = false;
                     btn.textContent = '🔒 提交订单';
@@ -306,12 +639,16 @@
 
         function showSuccessModal(order) {
             // 创建成功页
+            const earnedPoints = Math.floor(order.total);
+            const currentPoints = getUserPoints();
             document.getElementById('checkoutContent').innerHTML = `
                 <div style="text-align:center;padding:60px 20px;background:var(--bg-primary);border:1px solid var(--border-light);border-radius:var(--radius-md);">
                     <div style="font-size:4rem;margin-bottom:16px;">🎉</div>
                     <h2 style="margin-bottom:12px;">订单提交成功！</h2>
                     <p style="color:var(--text-secondary);margin-bottom:8px;">订单编号：<strong>${order.id}</strong></p>
                     <p style="color:var(--text-secondary);margin-bottom:8px;">应付金额：<strong style="color:var(--danger);font-size:1.2rem;">¥${order.total.toFixed(2)}</strong></p>
+                    ${order.pointsUsed > 0 ? `<p style="color:var(--success);margin-bottom:4px;">积分抵扣：-${order.pointsUsed}积分（-¥${order.pointsDiscount.toFixed(2)}）</p>` : ''}
+                    <p style="color:var(--success);margin-bottom:8px;">🎁 下单奖励：+${earnedPoints}积分（当前积分：${currentPoints}）</p>
                     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:24px;">
                         配送方式：${order.shippingMethod === 'free' ? '包邮' : order.shippingMethod === 'express' ? '特快专递' : '标准快递'}
                         &nbsp;|&nbsp;

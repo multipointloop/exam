@@ -1,5 +1,5 @@
 /**
- * 長門番堂 - 动漫周边商城
+ * 長門商城 - 动漫周边商城
  * 购物车管理模块
  * 学号：24215220132  姓名：黄政源
  */
@@ -172,6 +172,9 @@ class CheckoutManager {
         const subtotal = cart.getTotalAmount();
         const shipping = orderInfo.shippingMethod === 'free' && subtotal >= 199 ? 0 :
             this.shippingMethods.find(m => m.id === orderInfo.shippingMethod)?.price || 8;
+        const pointsUsed = orderInfo.pointsUsed || 0;
+        const pointsDiscount = orderInfo.pointsDiscount || 0;
+        const total = Math.max(0, subtotal + shipping - pointsDiscount);
 
         const order = createOrder({
             userId: user.id,
@@ -186,7 +189,9 @@ class CheckoutManager {
             })),
             subtotal: subtotal,
             shipping: shipping,
-            total: subtotal + shipping,
+            pointsUsed: pointsUsed,
+            pointsDiscount: pointsDiscount,
+            total: total,
             shippingMethod: orderInfo.shippingMethod || 'standard',
             paymentMethod: orderInfo.paymentMethod || 'alipay',
             address: orderInfo.address || '',

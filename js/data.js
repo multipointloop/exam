@@ -1,5 +1,5 @@
 /**
- * 長門番堂 - 动漫周边商城
+ * 長門商城 - 动漫周边商城
  * 数据模块：商品数据、用户数据、订单数据管理
  * 学号：24215220132  姓名：黄政源
  */
@@ -385,6 +385,110 @@ function isLoggedIn() {
     return getCurrentUser() !== null;
 }
 
+// ==================== 积分管理 ====================
+const POINTS_LOG_KEY = 'nagato_shop_points_log';
+const POINTS_RATIO = 1000; // 1000积分 = 1元
+const POINTS_MIN_USE = 50; // 最低使用50积分
+
+// 获取积分变动日志
+function getPointsLog() {
+    try {
+        const data = localStorage.getItem(POINTS_LOG_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+// 添加积分变动记录
+function addPointsLog(userId, amount, reason) {
+    const logs = getPointsLog();
+    logs.unshift({
+        id: Date.now(),
+        userId: userId,
+        amount: amount,
+        reason: reason,
+        createdAt: new Date().toISOString()
+    });
+    // 只保留最近100条
+    if (logs.length > 100) logs.length = 100;
+    localStorage.setItem(POINTS_LOG_KEY, JSON.stringify(logs));
+}
+
+// 获取当前用户的实际积分（从users数组中读取最新值）
+function getUserPoints() {
+    const user = getCurrentUser();
+    if (!user) return 0;
+    const users = JSON.parse(localStorage.getItem('nagato_shop_users') || '[]');
+    const found = users.find(u => u.id === user.id);
+    return found ? (found.points || 0) : (user.points || 0);
+}
+
+// 增加积分（同时更新users数组和当前session用户）
+function updateUserPoints(userId, amount, reason) {
+    if (amount === 0) return getUserPoints();
+
+    const users = JSON.parse(localStorage.getItem('nagato_shop_users') || '[]');
+    const userIndex = users.findIndex(u => u.id === userId);
+    if (userIndex < 0) return getUserPoints();
+
+    // 确保积分不为负
+    const newPoints = Math.max(0, (users[userIndex].points || 0) + amount);
+    users[userIndex].points = newPoints;
+    localStorage.setItem('nagato_shop_users', JSON.stringify(users));
+
+    // 同步更新当前session用户
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.id === userId) {
+        currentUser.points = newPoints;
+        saveUser(currentUser);
+    }
+
+    // 记录日志
+    addPointsLog(userId, amount, reason);
+
+    // 触发积分变动事件（用于弹窗通知）
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pointsChanged', {
+            detail: { userId, amount, newPoints, reason }
+        }));
+    }
+
+    return newPoints;
+}
+
+// 扣除积分（返回true表示成功，false表示积分不足）
+function deductUserPoints(userId, amount) {
+    const users = JSON.parse(localStorage.getItem('nagato_shop_users') || '[]');
+    const userIndex = users.findIndex(u => u.id === userId);
+    if (userIndex < 0) return false;
+
+    const currentPoints = users[userIndex].points || 0;
+    if (currentPoints < amount) return false;
+
+    users[userIndex].points = currentPoints - amount;
+    localStorage.setItem('nagato_shop_users', JSON.stringify(users));
+
+    // 同步更新当前session用户
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.id === userId) {
+        currentUser.points = users[userIndex].points;
+        saveUser(currentUser);
+    }
+
+    // 记录日志
+    addPointsLog(userId, -amount, '积分抵扣');
+
+    // 触发积分变动事件
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pointsChanged', {
+            detail: { userId, amount: -amount, newPoints: users[userIndex].points, reason: '积分抵扣' }
+        }));
+    }
+
+    return true;
+}
+
 // 用户注册（模拟，使用localStorage存储所有用户）
 function registerUser(username, password, email, phone) {
     const users = JSON.parse(localStorage.getItem('nagato_shop_users') || '[]');
@@ -410,6 +514,8 @@ function registerUser(username, password, email, phone) {
     // 自动登录
     const { password: _, ...safeUser } = newUser;
     saveUser(safeUser);
+    // 记录注册积分
+    addPointsLog(newUser.id, 100, '注册奖励');
     return { success: true, message: '注册成功', user: safeUser };
 }
 
@@ -443,6 +549,8 @@ function createOrder(orderData) {
     const newOrder = {
         id: 'ORD' + Date.now(),
         ...orderData,
+        pointsEarned: orderData.pointsEarned !== undefined ? orderData.pointsEarned : false,
+        completionBonusEarned: orderData.completionBonusEarned !== undefined ? orderData.completionBonusEarned : false,
         status: 'pending', // pending, paid, shipped, completed, cancelled
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()

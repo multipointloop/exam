@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登录/注册 — 長門番堂</title>
-    <meta name="description" content="長門番堂用户登录与注册页面。学号：24215220132 姓名：黄政源">
+    <title>登录/注册 — 長門商城</title>
+    <meta name="description" content="長門商城用户登录与注册页面。学号：24215220132 姓名：黄政源">
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -18,7 +18,7 @@
         <div class="auth-card">
             <div class="auth-logo">
                 <div class="icon">🏮</div>
-                <h2>長門番堂</h2>
+                <h2>長門商城</h2>
             </div>
 
             <div class="auth-tabs">
@@ -93,7 +93,7 @@
     <script src="../js/main.js"></script>
     <script>
     /**
-     * 長門番堂 — 登录/注册页逻辑
+     * 長門商城 — 登录/注册页逻辑
      * 学号：24215220132  姓名：黄政源
      */
     document.addEventListener('DOMContentLoaded', function() {
@@ -257,7 +257,7 @@
             setTimeout(() => {
                 const result = registerUser(username, password, email, phone || '');
                 if (result.success) {
-                    toast.success('注册成功！欢迎加入長門番堂 🎉');
+                    toast.success('注册成功！欢迎加入長門商城 🎉');
 
                     const redirect = getUrlParam('redirect');
                     setTimeout(() => {

@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的订单 — 長門番堂</title>
-    <meta name="description" content="長門番堂订单管理页面。学号：24215220132 姓名：黄政源">
+    <title>我的订单 — 長門商城</title>
+    <meta name="description" content="長門商城订单管理页面。学号：24215220132 姓名：黄政源">
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -56,7 +56,7 @@
     <script src="../js/main.js"></script>
     <script>
     /**
-     * 長門番堂 — 订单页逻辑
+     * 長門商城 — 订单页逻辑
      * 学号：24215220132  姓名：黄政源
      */
     document.addEventListener('DOMContentLoaded', function() {
@@ -167,7 +167,24 @@
 
             // 暴露操作函数
             window.payOrder = function(orderId) {
+                const order = getOrderById(orderId);
                 updateOrderStatus(orderId, 'paid');
+
+                // 如果订单尚未奖励积分，则奖励
+                if (order && !order.pointsEarned) {
+                    const earnPoints = Math.floor(order.total);
+                    if (earnPoints > 0) {
+                        updateUserPoints(order.userId, earnPoints, `订单 ${orderId} 支付奖励`);
+                    }
+                    // 标记积分已奖励
+                    const allOrders = getOrders();
+                    const idx = allOrders.findIndex(o => o.id === orderId);
+                    if (idx >= 0) {
+                        allOrders[idx].pointsEarned = true;
+                        saveOrders(allOrders);
+                    }
+                }
+
                 toast.success('支付成功！订单 ' + orderId + ' 已付款');
                 renderOrders();
             };
@@ -176,8 +193,13 @@
                 modal.show('确认取消订单', '<p>确定要取消订单 <strong>' + orderId + '</strong> 吗？此操作不可撤销。</p>', [
                     { text: '再想想', action: 'close', cls: 'btn-outline' },
                     { text: '确认取消', action: 'confirm', cls: 'btn-danger', callback: () => {
+                        const order = getOrderById(orderId);
+                        // 退还使用的积分
+                        if (order && order.pointsUsed > 0) {
+                            updateUserPoints(order.userId, order.pointsUsed, `订单 ${orderId} 取消，退还积分`);
+                        }
                         updateOrderStatus(orderId, 'cancelled');
-                        toast.info('订单 ' + orderId + ' 已取消');
+                        toast.info('订单 ' + orderId + ' 已取消' + (order && order.pointsUsed > 0 ? '，积分已退还' : ''));
                         renderOrders();
                     }}
                 ]);
@@ -187,8 +209,21 @@
                 modal.show('确认收货', '<p>确定已收到订单 <strong>' + orderId + '</strong> 的商品吗？</p>', [
                     { text: '再等等', action: 'close', cls: 'btn-outline' },
                     { text: '确认收货', action: 'confirm', cls: 'btn-success', callback: () => {
+                        const order = getOrderById(orderId);
                         updateOrderStatus(orderId, 'completed');
-                        toast.success('已确认收货！感谢您的购买 🎉');
+
+                        // 确认收货赠送10积分
+                        if (order && !order.completionBonusEarned) {
+                            updateUserPoints(order.userId, 10, `订单 ${orderId} 确认收货奖励`);
+                            const allOrders = getOrders();
+                            const idx = allOrders.findIndex(o => o.id === orderId);
+                            if (idx >= 0) {
+                                allOrders[idx].completionBonusEarned = true;
+                                saveOrders(allOrders);
+                            }
+                        }
+
+                        toast.success('已确认收货！感谢您的购买 🎉 +10积分');
                         renderOrders();
                     }}
                 ]);

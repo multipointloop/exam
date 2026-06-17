@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>个人中心 — 長門番堂</title>
-    <meta name="description" content="長門番堂个人中心页面。学号：24215220132 姓名：黄政源">
+    <title>个人中心 — 長門商城</title>
+    <meta name="description" content="長門商城个人中心页面。学号：24215220132 姓名：黄政源">
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -37,7 +37,7 @@
     <script src="../js/main.js"></script>
     <script>
     /**
-     * 長門番堂 — 个人中心页逻辑
+     * 長門商城 — 个人中心页逻辑
      * 学号：24215220132  姓名：黄政源
      */
     document.addEventListener('DOMContentLoaded', function() {
@@ -139,6 +139,9 @@
             if (activeTab === 'security') {
                 bindSecurityForm();
             }
+            if (activeTab === 'points') {
+                bindPointsTab();
+            }
         }
 
         function renderTabContent() {
@@ -171,7 +174,7 @@
                                     <tr><td>用户名</td><td>${user.username}</td></tr>
                                     <tr><td>邮箱</td><td>${user.email || '未设置'}</td></tr>
                                     <tr><td>手机号</td><td>${user.phone || '未设置'}</td></tr>
-                                    <tr><td>积分</td><td>${user.points || 0} 分</td></tr>
+                                    <tr><td>积分</td><td>${getUserPoints()} 分（≈ ¥${(getUserPoints() / 1000).toFixed(2)}）</td></tr>
                                     <tr><td>注册时间</td><td>${user.createdAt ? new Date(user.createdAt).toLocaleString('zh-CN') : '未知'}</td></tr>
                                 </tbody>
                             </table>
@@ -222,27 +225,59 @@
                         </form>
                     `;
                 case 'points':
+                    const currentPoints = getUserPoints();
+                    const pointsLog = getPointsLog().filter(log => log.userId === user.id).slice(0, 20);
+                    // 检查今天是否已签到
+                    const lastCheckIn = localStorage.getItem('nagato_last_checkin_' + user.id);
+                    const today = new Date().toDateString();
+                    const canCheckIn = lastCheckIn !== today;
                     return `
                         <h3>💰 我的积分</h3>
                         <div style="background:var(--warning-bg);padding:30px;border-radius:var(--radius-md);text-align:center;margin-bottom:24px;">
                             <div style="font-size:0.9rem;color:var(--text-secondary);">当前积分</div>
-                            <div style="font-size:3rem;font-weight:700;color:var(--warning);">${user.points || 0}</div>
-                            <div style="font-size:0.85rem;color:var(--text-muted);">积分可抵扣现金（100积分=1元）</div>
+                            <div style="font-size:3rem;font-weight:700;color:var(--warning);" id="pointsDisplay">${currentPoints}</div>
+                            <div style="font-size:0.85rem;color:var(--text-muted);">积分可抵扣现金（1000积分=1元，50积分起用）</div>
+                            <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">
+                                当前可抵扣约 ¥${(currentPoints * 0.001).toFixed(2)}
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+                            <button class="btn btn-primary" id="btnCheckIn"
+                                ${canCheckIn ? '' : 'disabled'}
+                                style="${canCheckIn ? '' : 'opacity:0.5;cursor:not-allowed;'}">
+                                📅 ${canCheckIn ? '每日签到（+5积分）' : '今日已签到'}
+                            </button>
                         </div>
                         <h4 style="margin-bottom:12px;">积分获取规则</h4>
-                        <div class="detail-table-section">
+                        <div class="detail-table-section" style="margin-bottom:20px;">
                             <table class="info-table">
                                 <tbody>
                                     <tr><td>注册奖励</td><td>+100 积分</td></tr>
                                     <tr><td>每消费1元</td><td>+1 积分</td></tr>
-                                    <tr><td>完成订单评价</td><td>+10 积分</td></tr>
+                                    <tr><td>完成订单</td><td>+10 积分</td></tr>
                                     <tr><td>每日签到</td><td>+5 积分</td></tr>
+                                    <tr><td>积分抵扣</td><td>1000积分 = 1元（50积分起用）</td></tr>
                                 </tbody>
                             </table>
                         </div>
-                        <button class="btn btn-primary" style="margin-top:16px;" onclick="toast.success('签到成功！+5积分');">
-                            📅 每日签到
-                        </button>
+                        <h4 style="margin-bottom:12px;">📜 积分变动记录</h4>
+                        ${pointsLog.length > 0 ? `
+                        <div class="detail-table-section">
+                            <table class="info-table">
+                                <tbody>
+                                    ${pointsLog.map(log => `
+                                        <tr>
+                                            <td style="width:160px;">${new Date(log.createdAt).toLocaleString('zh-CN')}</td>
+                                            <td>${log.reason}</td>
+                                            <td style="font-weight:700;color:${log.amount >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                                                ${log.amount >= 0 ? '+' : ''}${log.amount} 积分
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        ` : '<p style="color:var(--text-muted);font-size:0.9rem;">暂无积分变动记录</p>'}
                     `;
                 default:
                     return '';
@@ -337,6 +372,30 @@
                     activeTab = 'overview';
                     renderProfile();
                 }
+            });
+        }
+
+        function bindPointsTab() {
+            const btnCheckIn = document.getElementById('btnCheckIn');
+            if (!btnCheckIn) return;
+
+            btnCheckIn.addEventListener('click', function() {
+                const lastCheckIn = localStorage.getItem('nagato_last_checkin_' + user.id);
+                const today = new Date().toDateString();
+                if (lastCheckIn === today) {
+                    toast.warning('今日已签到，请明天再来~');
+                    return;
+                }
+
+                // 实际增加积分
+                const newPoints = updateUserPoints(user.id, 5, '每日签到');
+                localStorage.setItem('nagato_last_checkin_' + user.id, today);
+                toast.success('签到成功！+5积分，当前积分：' + newPoints);
+
+                // 重新渲染积分页面
+                setTimeout(() => {
+                    renderProfile();
+                }, 300);
             });
         }
 

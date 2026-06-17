@@ -1,5 +1,5 @@
 /**
- * 長門番堂 - 动漫周边商城
+ * 長門商城 - 动漫周边商城
  * 主样式表 — 致敬 yuc.wiki 的极简风格设计
  * 学号：24215220132  姓名：黄政源
  */
@@ -1260,6 +1260,43 @@ textarea.form-control {
     border-bottom: 1px solid var(--border-light);
 }
 
+/* 常用地址标签 */
+.saved-addr-chip {
+    cursor: pointer;
+    padding: 6px 10px;
+    border: 1px solid var(--border-medium);
+    border-radius: 16px;
+    font-size: 0.8rem;
+    background: var(--bg-secondary);
+    transition: all 0.2s;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.saved-addr-chip:hover {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.saved-addr-chip .addr-del {
+    color: var(--text-muted);
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0 2px;
+}
+
+.saved-addr-chip .addr-del:hover {
+    color: var(--danger);
+}
+
 .payment-methods {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -1836,4 +1873,119 @@ textarea.form-control {
     .header-search { display: none !important; }
     body { background: #fff; }
     .main-content { max-width: 100%; padding: 0; }
+}
+
+/* ==================== 积分变动通知弹窗 ==================== */
+.points-notification-container {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 9998;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.points-notification-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    width: 320px;
+    overflow: hidden;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: all 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.points-notification-card.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.points-notification-card.hide {
+    transform: translateX(120%);
+    opacity: 0;
+}
+
+.pn-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    background: var(--accent-light);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.pn-icon {
+    font-size: 1.2rem;
+}
+
+.pn-title {
+    flex: 1;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--accent-dark);
+}
+
+.pn-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    color: var(--text-muted);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+}
+
+.pn-close:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.pn-body {
+    padding: 16px;
+}
+
+.pn-reason {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.pn-amount {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.pn-amount.positive {
+    color: var(--success);
+}
+
+.pn-amount.negative {
+    color: var(--danger);
+}
+
+.pn-current {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+}
+
+.pn-footer {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border-light);
+    text-align: center;
+}
+
+@media (max-width: 480px) {
+    .points-notification-container {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+    }
+    .points-notification-card {
+        width: 100%;
+    }
 }

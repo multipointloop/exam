@@ -1,5 +1,5 @@
 /**
- * 長門番堂 - 动漫周边商城
+ * 長門商城 - 动漫周边商城
  * 主逻辑模块：导航、搜索、Toast、通用功能
  * 学号：24215220132  姓名：黄政源
  */
@@ -81,7 +81,7 @@ class NavigationManager {
         header.innerHTML = `
             <a href="${basePath}/index.html" class="site-logo">
                 <span class="logo-icon">🏮</span>
-                <span>長門番堂</span>
+                <span>長門商城</span>
             </a>
             <div class="header-search">
                 <input type="text" id="headerSearchInput" placeholder="搜索商品..." autocomplete="off">
@@ -165,9 +165,9 @@ class NavigationManager {
                 <a href="cart.html">购物车</a>
                 <a href="profile.html">个人中心</a>
             </div>
-            <p>長門番堂 — 动漫周边商城 | 致敬 <a href="https://yuc.wiki/" target="_blank">yuc.wiki</a></p>
+            <p>長門商城 — 动漫周边商城 | 致敬 <a href="https://yuc.wiki/" target="_blank">yuc.wiki</a></p>
             <p class="student-info">学号：24215220132 | 姓名：黄政源 | 广东东软学院 Web编程技术课程设计</p>
-            <p style="margin-top:4px;font-size:0.78rem;color:var(--text-muted);">© 2026 長門番堂. 本站仅为课程设计作品，不涉及真实交易。</p>
+            <p style="margin-top:4px;font-size:0.78rem;color:var(--text-muted);">© 2026 長門商城. 本站仅为课程设计作品，不涉及真实交易。</p>
         `;
     }
 
@@ -282,9 +282,111 @@ function quickBuy(productId, quantity = 1) {
     window.location.href = basePath + 'checkout.html';
 }
 
+// ==================== 积分变动通知系统 ====================
+class PointsNotificationManager {
+    constructor() {
+        this.container = null;
+        this.timer = null;
+        this.init();
+    }
+
+    init() {
+        this.container = document.createElement('div');
+        this.container.className = 'points-notification-container';
+        this.container.id = 'points-notification-container';
+        document.body.appendChild(this.container);
+
+        // 监听积分变动事件
+        window.addEventListener('pointsChanged', (e) => {
+            this.show(e.detail);
+        });
+    }
+
+    // 判断是否在"我的积分"页面
+    isOnPointsPage() {
+        // 检查URL是否包含profile.html且当前tab是points
+        const path = window.location.pathname;
+        if (!path.includes('profile.html')) return false;
+
+        // 检查profile导航中是否有active的points链接
+        const activeLink = document.querySelector('.profile-nav a[data-tab="points"].active');
+        return !!activeLink;
+    }
+
+    show(detail) {
+        // 如果在积分页面则不弹窗
+        if (this.isOnPointsPage()) return;
+
+        // 清除之前的定时器
+        if (this.timer) clearTimeout(this.timer);
+
+        const { amount, newPoints, reason } = detail;
+        const isPositive = amount > 0;
+        const sign = isPositive ? '+' : '';
+
+        const card = document.createElement('div');
+        card.className = 'points-notification-card';
+        card.innerHTML = `
+            <div class="pn-header">
+                <span class="pn-icon">${isPositive ? '🎉' : '💸'}</span>
+                <span class="pn-title">积分变动通知</span>
+                <button class="pn-close" aria-label="关闭">✕</button>
+            </div>
+            <div class="pn-body">
+                <div class="pn-reason">${reason}</div>
+                <div class="pn-amount ${isPositive ? 'positive' : 'negative'}">
+                    ${sign}${amount} 积分
+                </div>
+                <div class="pn-current">
+                    当前积分：<strong>${newPoints}</strong> 分
+                    <span style="font-size:0.75rem;color:var(--text-muted);">
+                        （≈ ¥${(newPoints / 1000).toFixed(2)}）
+                    </span>
+                </div>
+            </div>
+            <div class="pn-footer">
+                <a href="${this.getProfilePointsUrl()}" class="btn btn-sm btn-primary">📋 查看积分明细</a>
+            </div>
+        `;
+
+        this.container.innerHTML = '';
+        this.container.appendChild(card);
+
+        // 显示动画
+        requestAnimationFrame(() => {
+            card.classList.add('show');
+        });
+
+        // 关闭按钮
+        card.querySelector('.pn-close').addEventListener('click', () => {
+            this.hide(card);
+        });
+
+        // 6秒后自动消失
+        this.timer = setTimeout(() => {
+            this.hide(card);
+        }, 6000);
+    }
+
+    hide(card) {
+        card.classList.remove('show');
+        card.classList.add('hide');
+        setTimeout(() => {
+            if (card.parentNode) card.remove();
+        }, 300);
+    }
+
+    getProfilePointsUrl() {
+        const currentPath = window.location.pathname;
+        const isInPages = currentPath.includes('/pages/');
+        return isInPages ? 'profile.html#points' : 'pages/profile.html#points';
+    }
+}
+
 // ==================== 页面初始化 ====================
 document.addEventListener('DOMContentLoaded', () => {
     new NavigationManager();
+    new PointsNotificationManager();
     updateCartBadge();
 });
 
